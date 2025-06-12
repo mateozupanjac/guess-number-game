@@ -1,4 +1,11 @@
-import { View, Text, StyleSheet, Alert, FlatList } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  FlatList,
+  useWindowDimensions,
+} from "react-native";
 import PrimaryButton from "../components/ui/PrimaryButton";
 import Title from "../components/ui/Title";
 import { useEffect, useState } from "react";
@@ -18,16 +25,29 @@ function generateRandomBetween(min, max, exclude) {
   }
 }
 
+let minBoundary = 1;
+let maxBoundary = 100;
+
 export default function GameScreen({ userNumber, onGameOver, onAddGuess }) {
-  const initialGuess = generateRandomBetween(1, 100, undefined);
+  const initialGuess = generateRandomBetween(1, 100, userNumber);
   const [currentGuess, setCurrentGuess] = useState(initialGuess);
   const [pastGuesses, setPastGuesses] = useState([initialGuess]);
+  const { height: deviceHeight, width: deviceWidth } = useWindowDimensions();
+
+  const dynamicStyles = {
+    padding: deviceHeight < 400 ? 6 : 24,
+  };
 
   useEffect(() => {
     if (currentGuess === userNumber) {
       onGameOver();
     }
   }, [currentGuess, userNumber, onGameOver]);
+
+  useEffect(() => {
+    minBoundary = 1;
+    maxBoundary = 100;
+  }, []);
 
   const handleAddPastGuesses = (newGuess) => {
     setPastGuesses((prevGuesses) => [newGuess, ...prevGuesses]);
@@ -45,24 +65,23 @@ export default function GameScreen({ userNumber, onGameOver, onAddGuess }) {
       return;
     }
 
-    let guess;
     if (direction === "lower") {
-      guess = generateRandomBetween(1, currentGuess, undefined);
-      setCurrentGuess(guess);
-      handleAddPastGuesses(guess);
+      maxBoundary = currentGuess;
     } else {
-      guess = generateRandomBetween(currentGuess + 1, 100, undefined);
-      setCurrentGuess(generateRandomBetween(guess));
-      handleAddPastGuesses(guess);
+      minBoundary = currentGuess + 1;
     }
+
+    let guess = generateRandomBetween(minBoundary, maxBoundary, currentGuess);
+    setCurrentGuess(guess);
+    handleAddPastGuesses(guess);
   }
-  return (
-    <View style={styles.mainContainer}>
-      <Title title="Opponent's Guess" />
+
+  let content = (
+    <>
       <NumberContainer>{currentGuess}</NumberContainer>
       <Card>
         <Text style={styles.text}>Higher or lower?</Text>
-        <View style={styles.buttonsContainer}>
+        <View style={[styles.buttonsContainer, dynamicStyles]}>
           <PrimaryButton
             text={<Ionicons name="add" size={20} color="white" />}
             onPress={() => nextGuessHandler("higher")}
@@ -73,7 +92,32 @@ export default function GameScreen({ userNumber, onGameOver, onAddGuess }) {
           />
         </View>
       </Card>
-      <View style={styles.listContainer}>
+    </>
+  );
+
+  if (deviceWidth > deviceHeight) {
+    content = (
+      <>
+        <Text style={styles.text}>Higher or lower?</Text>
+        <View style={[styles.buttonsContainer, dynamicStyles]}>
+          <PrimaryButton
+            text={<Ionicons name="add" size={20} color="white" />}
+            onPress={() => nextGuessHandler("higher")}
+          />
+          <NumberContainer>{currentGuess}</NumberContainer>
+          <PrimaryButton
+            text={<Ionicons name="remove" size={20} color="white" />}
+            onPress={() => nextGuessHandler("lower")}
+          />
+        </View>
+      </>
+    );
+  }
+  return (
+    <View style={[styles.mainContainer, dynamicStyles]}>
+      <Title title="Opponent's Guess" />
+      {content}
+      <View style={[styles.listContainer, dynamicStyles]}>
         <FlatList
           data={pastGuesses}
           renderItem={(itemData) => (
@@ -92,17 +136,15 @@ export default function GameScreen({ userNumber, onGameOver, onAddGuess }) {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    padding: 24,
+    alignItems: "center",
   },
   listContainer: {
     flex: 1,
-    padding: 16,
   },
   buttonsContainer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    padding: 16,
   },
   text: {
     color: Colors.accent500,
